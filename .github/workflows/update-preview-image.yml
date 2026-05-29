@@ -48,7 +48,7 @@ jobs:
             puppeteer-chrome-${{ runner.os }}-
 
       - name: Install screenshot dependency
-        run: npm install --no-save --ignore-scripts capture-website puppeteer
+        run: npm install --no-save --ignore-scripts puppeteer
 
       - name: Install Puppeteer Chrome
         shell: bash
@@ -105,7 +105,8 @@ jobs:
           OUTPUT_PATH: .preview/preview.png
           VIEWPORT_WIDTH: 1280
           VIEWPORT_HEIGHT: 800
-          CAPTURE_DELAY_SECONDS: 3
+          NETWORK_IDLE_MS: 1000
+          CAPTURE_ELEMENT_SELECTOR: "#app"
         run: node .github/scripts/capture-preview.mjs
 
       - name: Publish preview image to preview-assets branch
