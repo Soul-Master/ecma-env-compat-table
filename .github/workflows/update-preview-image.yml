@@ -48,9 +48,7 @@ jobs:
             puppeteer-chrome-${{ runner.os }}-
 
       - name: Install screenshot dependency
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: true
-        run: npm install --no-save capture-website puppeteer
+        run: npm install --no-save --ignore-scripts capture-website puppeteer
 
       - name: Install Puppeteer Chrome
         shell: bash
