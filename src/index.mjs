@@ -20,6 +20,7 @@ const status = document.querySelector("#status");
 let bcd = null;
 let resolvedEditions = [];
 let expandedYears = new Set([editions[0].year]);
+let rowPointerDown = null;
 
 reload.addEventListener("click", () => load(true));
 filter.addEventListener("input", () => {
@@ -30,6 +31,17 @@ filter.addEventListener("input", () => {
 hideUnknown.addEventListener("change", render);
 expandAll.addEventListener("click", () => { expandedYears = new Set(editions.map(e => e.year)); render(); });
 collapseAll.addEventListener("click", () => { expandedYears = new Set(); render(); });
+app.addEventListener("pointerdown", event => {
+    const row = getParentRow(event);
+    rowPointerDown = row ? { x: event.clientX, y: event.clientY } : null;
+});
+app.addEventListener("click", event => {
+    const row = getParentRow(event);
+    if (!row) return;
+    if (isSelectingText(event)) return;
+
+    toggleYear(Number(row.getAttribute("data-toggle-year")));
+});
 
 await load(false);
 
@@ -269,14 +281,27 @@ function render() {
     </div>
     `;
 
-    for (const button of document.querySelectorAll("[data-toggle-year]")) {
-        button.addEventListener("click", () => {
-            const year = Number(button.getAttribute("data-toggle-year"));
-            if (expandedYears.has(year)) expandedYears.delete(year);
-            else expandedYears.add(year);
-            render();
-        });
-    }
+}
+
+function toggleYear(year) {
+    if (expandedYears.has(year)) expandedYears.delete(year);
+    else expandedYears.add(year);
+    render();
+}
+
+function getParentRow(event) {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    return target?.closest(".parent-row[data-toggle-year]") ?? null;
+}
+
+function isSelectingText(event) {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed && selection.toString().trim()) return true;
+    if (!rowPointerDown) return false;
+
+    const dx = Math.abs(event.clientX - rowPointerDown.x);
+    const dy = Math.abs(event.clientY - rowPointerDown.y);
+    return dx > 4 || dy > 4;
 }
 
 function renderEditionBlock(edition) {
@@ -290,10 +315,10 @@ function renderEditionBlock(edition) {
 }
 
 function renderParentRow(edition, support, isExpanded) {
-    return `<tr class="parent-row">
+    return `<tr class="parent-row" data-toggle-year="${edition.year}">
     <td>
         <div class="tree-cell edition-sticky">
-        <button class="twisty" type="button" data-toggle-year="${edition.year}" aria-expanded="${isExpanded}" aria-label="${isExpanded ? "Collapse" : "Expand"} ${escapeHtml(edition.name)}">
+        <button class="twisty" type="button" aria-expanded="${isExpanded}" aria-label="${isExpanded ? "Collapse" : "Expand"} ${escapeHtml(edition.name)}">
             <span class="closed">▶</span>
             <span class="open">▼</span>
         </button>
@@ -309,10 +334,11 @@ function renderParentRow(edition, support, isExpanded) {
 function renderFeatureRow(feature) {
     const query = filter.value.trim();
     const featureName = highlightMatches(feature.name, query);
+    const featureTooltip = escapeHtml(`${feature.kind}\n${feature.description}`);
     // const featurePaths = `BCD: ${feature.resolvedPaths.length ? feature.resolvedPaths.map(path => `${escapeHtml(path)}`).join(", ") : "unresolved from configured paths"}`;
     const nameMarkup = feature.mdnUrl
-        ? `<a class="name feature-link" href="${escapeHtml(feature.mdnUrl)}" target="_blank" rel="noreferrer" title="${feature.description}">${featureName}</a>`
-        : `<span class="name" title="${feature.description}">${featureName}</span>`;
+        ? `<a class="name feature-link" href="${escapeHtml(feature.mdnUrl)}" target="_blank" rel="noreferrer" title="${featureTooltip}">${featureName}</a>`
+        : `<span class="name" title="${featureTooltip}">${featureName}</span>`;
 
     return `<tr class="sub-feature">
     <td>
