@@ -4,15 +4,16 @@ const BCD_URL = "https://unpkg.com/@mdn/browser-compat-data/data.json";
 const EDGE_CHROMIUM_VERSION = "79";
 
 const columns = [
-    { id: "chrome", label: "Chrome", browserIds: ["chrome"] },
+    { id: "chrome", label: "Chrome", browserIds: ["chrome", "chrome_android"] },
     { id: "edge", label: "Edge", browserIds: ["edge"] },
-    { id: "safari", label: "Safari", browserIds: ["safari"] },
-    { id: "firefox", label: "Firefox", browserIds: ["firefox"] },
+    { id: "safari", label: "Safari", browserIds: ["safari", "safari_ios"] },
+    { id: "firefox", label: "Firefox", browserIds: ["firefox", "firefox_android"] },
     { id: "nodejs", label: "Node.js", browserIds: ["nodejs"] },
 ];
 const app = document.querySelector("#app");
 const filter = document.querySelector("#filter");
 const hideUnknown = document.querySelector("#hideUnknown");
+const showMobile = document.querySelector("#showMobile");
 const reload = document.querySelector("#reload");
 const expandAll = document.querySelector("#expandAll");
 const collapseAll = document.querySelector("#collapseAll");
@@ -30,6 +31,7 @@ filter.addEventListener("input", () => {
     render();
 });
 hideUnknown.addEventListener("change", render);
+showMobile.addEventListener("change", render);
 expandAll.addEventListener("click", () => { expandedYears = new Set(editions.map(e => e.year)); render(); });
 collapseAll.addEventListener("click", () => { expandedYears = new Set(); render(); });
 app.addEventListener("pointerdown", event => {
@@ -103,7 +105,8 @@ function summarizeColumn(compat, column) {
 
     return {
         state: aggregateState(parts),
-        text: parts.map(p => `${labelForBrowser(p.browserId)} ${p.text}`).join(" / "),
+        text: formatCombinedSupportText(parts),
+        tooltip: formatCombinedSupportTooltip(parts),
         notes: parts.map(p => p.notes ? `${labelForBrowser(p.browserId)}: ${p.notes}` : "").filter(Boolean).join("; "),
         parts,
     };
@@ -127,7 +130,8 @@ function aggregateMaximum(items, column) {
 
         return {
             state: aggregateState(byBrowser),
-            text: byBrowser.map(p => `${labelForBrowser(p.browserId)} ${p.text}`).join(" / "),
+            text: formatCombinedSupportText(byBrowser),
+            tooltip: formatCombinedSupportTooltip(byBrowser),
             notes: "",
             parts: byBrowser,
         };
@@ -157,6 +161,22 @@ function aggregateState(items) {
     if (items.some(item => item.state === "unsupported")) return "unsupported";
     if (items.some(item => item.state === "partial")) return "partial";
     return "supported";
+}
+
+function formatCombinedSupportText(parts) {
+    const [desktop, mobile] = parts;
+    if (!showMobile.checked || !mobile || desktop.text === mobile.text) return desktop.text;
+    return `${desktop.text} / ${mobile.text}`;
+}
+
+function formatCombinedSupportTooltip(parts) {
+    const [desktop, mobile] = parts;
+    if (!mobile) return "";
+
+    return [
+        `Desktop (${labelForBrowser(desktop.browserId)}): ${desktop.text}`,
+        `Mobile (${labelForBrowser(mobile.browserId)}): ${mobile.text}`,
+    ].join("\n");
 }
 
 function getByPath(root, path) {
@@ -258,9 +278,12 @@ function normalizeNotes(notes) {
 function labelForBrowser(browserId) {
     switch (browserId) {
     case "chrome": return "Chrome";
+    case "chrome_android": return "Chrome Android";
     case "edge": return "Edge";
     case "safari": return "Safari";
+    case "safari_ios": return "Safari iOS";
     case "firefox": return "Firefox";
+    case "firefox_android": return "Firefox Android";
     case "nodejs": return "Node";
     default: return browserId;
     }
@@ -378,8 +401,12 @@ function renderFeatureRow(feature) {
 }
 
 function renderSupportCell(support) {
+    const text = support.parts ? formatCombinedSupportText(support.parts) : support.text;
+    const tooltipText = support.parts ? formatCombinedSupportTooltip(support.parts) : support.tooltip;
+    const tooltip = tooltipText ? ` title="${escapeHtml(tooltipText)}"` : "";
+
     return `<td>
-    <span class="version ${support.state}">${icon(support.state)} ${escapeHtml(support.text)}</span>
+    <span class="version ${support.state}"${tooltip}>${icon(support.state)} ${escapeHtml(text)}</span>
     ${support.notes ? `<div class="notes">${escapeHtml(support.notes)}</div>` : ""}
     </td>`;
 }
