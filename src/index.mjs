@@ -19,7 +19,7 @@ const status = document.querySelector("#status");
 
 let bcd = null;
 let resolvedEditions = [];
-let expandedYears = new Set([]);
+let expandedYears = new Set([editions[0].year]);
 
 reload.addEventListener("click", () => load(true));
 filter.addEventListener("input", () => {
@@ -38,20 +38,20 @@ async function load(force) {
     app.innerHTML = "";
 
     try {
-    const url = force ? `${BCD_URL}?t=${Date.now()}` : BCD_URL;
-    const res = await fetch(url, { cache: force ? "reload" : "default" });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const url = force ? `${BCD_URL}?t=${Date.now()}` : BCD_URL;
+        const res = await fetch(url, { cache: force ? "reload" : "default" });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 
-    bcd = await res.json();
-    resolvedEditions = editions
-        .map(edition => ({
-        ...edition,
-        features: edition.features.map(resolveFeature),
-        }))
-        .sort((a, b) => b.year - a.year);
+        bcd = await res.json();
+        resolvedEditions = editions
+            .map(edition => ({
+                ...edition,
+                features: edition.features.map(resolveFeature),
+            }))
+            .sort((a, b) => b.year - a.year);
 
         status.hidden = true;
-    render();
+        render();
     } catch (err) {
         status.hidden = false;
         status.textContent = "Failed to load BCD";
@@ -60,16 +60,16 @@ async function load(force) {
 
 function resolveFeature(feature) {
     const resolvedPaths = feature.paths
-    .map(path => [path, getByPath(bcd, path)])
-    .filter(([, value]) => value?.__compat);
+        .map(path => [path, getByPath(bcd, path)])
+        .filter(([, value]) => value?.__compat);
 
     return {
-    ...feature,
-    resolvedPaths: resolvedPaths.map(([path]) => path),
-    mdnUrl: resolvedPaths.map(([, value]) => value.__compat.mdn_url).find(Boolean) ?? null,
-    support: Object.fromEntries(
-        columns.map(column => [column.id, aggregateCompatForColumn(resolvedPaths.map(([, value]) => value.__compat), column)])
-    ),
+        ...feature,
+        resolvedPaths: resolvedPaths.map(([path]) => path),
+        mdnUrl: resolvedPaths.map(([, value]) => value.__compat.mdn_url).find(Boolean) ?? null,
+        support: Object.fromEntries(
+            columns.map(column => [column.id, aggregateCompatForColumn(resolvedPaths.map(([, value]) => value.__compat), column)])
+        ),
     };
 }
 
@@ -82,60 +82,60 @@ function aggregateCompatForColumn(compats, column) {
 
 function summarizeColumn(compat, column) {
     const parts = column.browserIds.map(browserId => {
-    const support = summarizeSupport(compat?.support?.[browserId]);
-    return { browserId, ...support };
+        const support = summarizeSupport(compat?.support?.[browserId]);
+        return { browserId, ...support };
     });
 
     if (column.browserIds.length === 1) return parts[0];
 
     return {
-    state: aggregateState(parts),
-    text: parts.map(p => `${labelForBrowser(p.browserId)} ${p.text}`).join(" / "),
-    notes: parts.map(p => p.notes ? `${labelForBrowser(p.browserId)}: ${p.notes}` : "").filter(Boolean).join("; "),
-    parts,
+        state: aggregateState(parts),
+        text: parts.map(p => `${labelForBrowser(p.browserId)} ${p.text}`).join(" / "),
+        notes: parts.map(p => p.notes ? `${labelForBrowser(p.browserId)}: ${p.notes}` : "").filter(Boolean).join("; "),
+        parts,
     };
 }
 
 function summarizeEdition(edition) {
     return Object.fromEntries(columns.map(column => {
-    const childSupports = edition.features.map(feature => feature.support[column.id]);
-    return [column.id, aggregateMaximum(childSupports, column)];
+        const childSupports = edition.features.map(feature => feature.support[column.id]);
+        return [column.id, aggregateMaximum(childSupports, column)];
     }));
 }
 
 function aggregateMaximum(items, column) {
     if (column.browserIds.length > 1) {
-    const byBrowser = column.browserIds.map(browserId => {
-        const childBrowserItems = items
-        .map(item => item.parts?.find(p => p.browserId === browserId))
-        .filter(Boolean);
-        return { browserId, ...aggregateMaximum(childBrowserItems, { browserIds: [browserId] }) };
-    });
+        const byBrowser = column.browserIds.map(browserId => {
+            const childBrowserItems = items
+                .map(item => item.parts?.find(p => p.browserId === browserId))
+                .filter(Boolean);
+            return { browserId, ...aggregateMaximum(childBrowserItems, { browserIds: [browserId] }) };
+        });
 
-    return {
-        state: aggregateState(byBrowser),
-        text: byBrowser.map(p => `${labelForBrowser(p.browserId)} ${p.text}`).join(" / "),
-        notes: "",
-        parts: byBrowser,
-    };
+        return {
+            state: aggregateState(byBrowser),
+            text: byBrowser.map(p => `${labelForBrowser(p.browserId)} ${p.text}`).join(" / "),
+            notes: "",
+            parts: byBrowser,
+        };
     }
 
     const usable = items.filter(item => item.numericParts?.length);
     if (!usable.length) {
-    return {
-        state: items.some(item => item.state === "unsupported") ? "unsupported" : "unknown",
-        text: items.some(item => item.state === "unsupported") ? "No" : "Unknown",
-        notes: "",
-        numericParts: [],
-    };
+        return {
+            state: items.some(item => item.state === "unsupported") ? "unsupported" : "unknown",
+            text: items.some(item => item.state === "unsupported") ? "No" : "Unknown",
+            notes: "",
+            numericParts: [],
+        };
     }
 
     const max = usable.reduce((a, b) => compareVersions(a.text, b.text) >= 0 ? a : b);
     return {
-    state: aggregateState(items),
-    text: max.text,
-    notes: "",
-    numericParts: max.numericParts,
+        state: aggregateState(items),
+        text: max.text,
+        notes: "",
+        numericParts: max.numericParts,
     };
 }
 
@@ -156,36 +156,36 @@ function summarizeSupport(value) {
     const entries = Array.isArray(value) ? value : [value];
 
     const usable = entries
-    .filter(entry => entry && entry.version_added && entry.version_added !== false)
-    .filter(entry => !entry.flags && !entry.prefix && !entry.alternative_name)
-    .sort((a, b) => compareVersions(String(a.version_added), String(b.version_added)));
+        .filter(entry => entry && entry.version_added && entry.version_added !== false)
+        .filter(entry => !entry.flags && !entry.prefix && !entry.alternative_name)
+        .sort((a, b) => compareVersions(String(a.version_added), String(b.version_added)));
 
     const full = usable.find(entry => entry.partial_implementation !== true);
     const partial = usable.find(entry => entry.partial_implementation === true);
     const chosen = full ?? partial;
 
     if (!chosen) {
-    const hasExplicitNo = entries.some(entry => entry?.version_added === false);
-    return {
-        state: hasExplicitNo ? "unsupported" : "unknown",
-        text: hasExplicitNo ? "No" : "Unknown",
-        notes: "",
-        numericParts: [],
-    };
+        const hasExplicitNo = entries.some(entry => entry?.version_added === false);
+        return {
+            state: hasExplicitNo ? "unsupported" : "unknown",
+            text: hasExplicitNo ? "No" : "Unknown",
+            notes: "",
+            numericParts: [],
+        };
     }
 
     const text = String(chosen.version_added);
     const notes = [
-    chosen.partial_implementation ? "partial implementation" : "",
-    chosen.version_removed ? `removed in ${chosen.version_removed}` : "",
-    chosen.notes ? normalizeNotes(chosen.notes) : "",
+        chosen.partial_implementation ? "partial implementation" : "",
+        chosen.version_removed ? `removed in ${chosen.version_removed}` : "",
+        chosen.notes ? normalizeNotes(chosen.notes) : "",
     ].filter(Boolean).join("; ");
 
     return {
-    state: chosen.partial_implementation ? "partial" : "supported",
-    text,
-    notes,
-    numericParts: parseVersion(text),
+        state: chosen.partial_implementation ? "partial" : "supported",
+        text,
+        notes,
+        numericParts: parseVersion(text),
     };
 }
 
@@ -198,8 +198,8 @@ function compareVersions(a, b) {
     if (!pb.length) return 1;
 
     for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const delta = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (delta) return delta;
+        const delta = (pa[i] ?? 0) - (pb[i] ?? 0);
+        if (delta) return delta;
     }
 
     return String(a).localeCompare(String(b));
@@ -207,11 +207,11 @@ function compareVersions(a, b) {
 
 function parseVersion(value) {
     return String(value)
-    .replace(/^≤/, "")
-    .replace(/^preview$/i, "9999")
-    .split(/[^\d]+/)
-    .filter(Boolean)
-    .map(Number);
+        .replace(/^≤/, "")
+        .replace(/^preview$/i, "9999")
+        .split(/[^\d]+/)
+        .filter(Boolean)
+        .map(Number);
 }
 
 function normalizeNotes(notes) {
@@ -234,23 +234,23 @@ function getVisibleEditions() {
     const q = filter.value.trim().toLowerCase();
 
     return resolvedEditions
-    .map(edition => {
-        const features = edition.features.filter(feature => {
-        if (hideUnknown.checked && feature.resolvedPaths.length === 0) return false;
-        const haystack = feature.name.toLowerCase();
-        return !q || haystack.includes(q);
-        });
-        return { ...edition, features };
-    })
-    .filter(edition => edition.features.length > 0 || !q);
+        .map(edition => {
+            const features = edition.features.filter(feature => {
+                if (hideUnknown.checked && feature.resolvedPaths.length === 0) return false;
+                const haystack = feature.name.toLowerCase();
+                return !q || haystack.includes(q);
+            });
+            return { ...edition, features };
+        })
+        .filter(edition => edition.features.length > 0 || !q);
 }
 
 function render() {
     const visibleEditions = getVisibleEditions();
 
     if (!visibleEditions.length) {
-    app.innerHTML = `<div class="error">No rows match the current filter.</div>`;
-    return;
+        app.innerHTML = `<div class="error">No rows match the current filter.</div>`;
+        return;
     }
 
     app.innerHTML = `
@@ -270,12 +270,12 @@ function render() {
     `;
 
     for (const button of document.querySelectorAll("[data-toggle-year]")) {
-    button.addEventListener("click", () => {
-        const year = Number(button.getAttribute("data-toggle-year"));
-        if (expandedYears.has(year)) expandedYears.delete(year);
-        else expandedYears.add(year);
-        render();
-    });
+        button.addEventListener("click", () => {
+            const year = Number(button.getAttribute("data-toggle-year"));
+            if (expandedYears.has(year)) expandedYears.delete(year);
+            else expandedYears.add(year);
+            render();
+        });
     }
 }
 
@@ -311,8 +311,8 @@ function renderFeatureRow(feature) {
     const featureName = highlightMatches(feature.name, query);
     // const featurePaths = `BCD: ${feature.resolvedPaths.length ? feature.resolvedPaths.map(path => `${escapeHtml(path)}`).join(", ") : "unresolved from configured paths"}`;
     const nameMarkup = feature.mdnUrl
-    ? `<a class="name feature-link" href="${escapeHtml(feature.mdnUrl)}" target="_blank" rel="noreferrer" title="${feature.description}">${featureName}</a>`
-    : `<span class="name" title="${feature.description}">${featureName}</span>`;
+        ? `<a class="name feature-link" href="${escapeHtml(feature.mdnUrl)}" target="_blank" rel="noreferrer" title="${feature.description}">${featureName}</a>`
+        : `<span class="name" title="${feature.description}">${featureName}</span>`;
 
     return `<tr class="sub-feature">
     <td>
@@ -362,9 +362,9 @@ function escapeRegExp(value) {
 
 function escapeHtml(value) {
     return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
