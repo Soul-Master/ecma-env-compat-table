@@ -3,7 +3,8 @@ import editions from '../data/edition-mapping.json' with { type: "json" };
 const BCD_URL = "https://unpkg.com/@mdn/browser-compat-data/data.json";
 
 const columns = [
-    { id: "chrome_edge", label: "Chrome/Edge", browserIds: ["chrome", "edge"] },
+    { id: "chrome", label: "Chrome", browserIds: ["chrome"] },
+    { id: "edge", label: "Edge", browserIds: ["edge"] },
     { id: "safari", label: "Safari", browserIds: ["safari"] },
     { id: "firefox", label: "Firefox", browserIds: ["firefox"] },
     { id: "nodejs", label: "Node.js", browserIds: ["nodejs"] },
@@ -65,6 +66,7 @@ function resolveFeature(feature) {
     return {
     ...feature,
     resolvedPaths: resolvedPaths.map(([path]) => path),
+    mdnUrl: resolvedPaths.map(([, value]) => value.__compat.mdn_url).find(Boolean) ?? null,
     support: Object.fromEntries(
         columns.map(column => [column.id, aggregateCompatForColumn(resolvedPaths.map(([, value]) => value.__compat), column)])
     ),
@@ -235,7 +237,7 @@ function getVisibleEditions() {
     .map(edition => {
         const features = edition.features.filter(feature => {
         if (hideUnknown.checked && feature.resolvedPaths.length === 0) return false;
-        const haystack = [feature.name, feature.description].join(" ").toLowerCase();
+        const haystack = feature.name.toLowerCase();
         return !q || haystack.includes(q);
         });
         return { ...edition, features };
@@ -290,7 +292,7 @@ function renderEditionBlock(edition) {
 function renderParentRow(edition, support, isExpanded) {
     return `<tr class="parent-row">
     <td>
-        <div class="tree-cell">
+        <div class="tree-cell edition-sticky">
         <button class="twisty" type="button" data-toggle-year="${edition.year}" aria-expanded="${isExpanded}" aria-label="${isExpanded ? "Collapse" : "Expand"} ${escapeHtml(edition.name)}">
             <span class="closed">▶</span>
             <span class="open">▼</span>
@@ -306,12 +308,18 @@ function renderParentRow(edition, support, isExpanded) {
 
 function renderFeatureRow(feature) {
     const query = filter.value.trim();
+    const featureName = highlightMatches(feature.name, query);
+    // const featurePaths = `BCD: ${feature.resolvedPaths.length ? feature.resolvedPaths.map(path => `${escapeHtml(path)}`).join(", ") : "unresolved from configured paths"}`;
+    const nameMarkup = feature.mdnUrl
+    ? `<a class="name feature-link" href="${escapeHtml(feature.mdnUrl)}" target="_blank" rel="noreferrer" title="${feature.description}">${featureName}</a>`
+    : `<span class="name" title="${feature.description}">${featureName}</span>`;
+
     return `<tr class="sub-feature">
     <td>
         <div class="tree-cell">
         <div>
-            <span class="name" title="BCD: ${feature.resolvedPaths.length ? feature.resolvedPaths.map(path => `${escapeHtml(path)}`).join(", ") : "unresolved from configured paths"}">${highlightMatches(feature.name, query)}</span>
-            <span class="meta">${escapeHtml(feature.kind)} — ${highlightMatches(feature.description, query)}</span>
+            ${nameMarkup}
+            <span class="meta">${escapeHtml(feature.kind)}</span>
         </div>
         </div>
     </td>

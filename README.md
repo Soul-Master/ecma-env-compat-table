@@ -20,7 +20,8 @@ The app groups JavaScript features by ECMAScript edition, such as ES2016, ES2020
 
 Each edition can be expanded to show individual features. For each feature, the table shows support information for:
 
-- Chrome / Edge
+- Chrome
+- Edge
 - Safari
 - Firefox
 - Node.js

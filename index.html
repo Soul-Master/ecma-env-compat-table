@@ -52,8 +52,8 @@
     thead th { position: sticky; top: 0; z-index: 1; background: color-mix(in srgb, CanvasText 7%, Canvas); color: var(--muted); font-weight: 650; }
     tbody tr:hover { background: var(--hover); }
     tbody tr:last-child td { border-bottom: 0; }
-    .feature-col { width: 38%; min-width: 340px; }
-    .version-col { width: 13%; white-space: nowrap; }
+    .feature-col { width: 50%; min-width: 200px; }
+    .version-col { width: 5%; white-space: nowrap; }
     .parent-row { background: var(--soft); font-weight: 650; }
     .parent-row td { border-bottom-color: color-mix(in srgb, CanvasText 24%, Canvas); }
     .tree-cell { display: flex; gap: 9px; align-items: baseline; }
@@ -65,7 +65,7 @@
     .twisty[aria-expanded="false"] .open { display: none; }
     .sub-feature .tree-cell { padding-left: 2.25rem; }
     .name { font-weight: 650; }
-    .meta { display: block; margin-top: 2px; color: var(--muted); font-size: 0.88rem; font-weight: 400; }
+    .meta { margin-top: 2px; color: var(--muted); font-size: 0.88rem; font-weight: 400; }
     .version { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; white-space: nowrap; }
     .supported { color: var(--ok); }
     .partial { color: var(--warn); }
@@ -97,7 +97,7 @@
       <label><input id="hideUnknown" type="checkbox" checked /> Hide unresolved BCD paths</label>
       <button id="expandAll" type="button">Expand all</button>
       <button id="collapseAll" type="button">Collapse all</button>
-      <button id="reload" type="button">Reload BCD</button>
+      <button id="reload" type="button">Reload</button>
       <span class="break"></span>
       <span class="status" id="status">Loading compatibility data…</span>
     </section>
