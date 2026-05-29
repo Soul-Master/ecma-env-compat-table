@@ -2,6 +2,8 @@
 
 A simplified ECMAScript compatibility table for developers who want a quick way to compare JavaScript language features against common runtimes.
 
+![Live preview](https://raw.githubusercontent.com/Soul-Master/ecma-env-compat-table/preview-assets/preview.png)
+
 https://soul-master.github.io/ecma-env-compat-table/
 
 This project is designed to help when choosing TypeScript `target` and `lib` settings. Instead of reading many separate compatibility pages, you can open one table, expand an ECMAScript edition, and see which browser or Node.js version is needed for the features in that edition.
