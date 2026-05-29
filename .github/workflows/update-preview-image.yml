@@ -1,0 +1,118 @@
+name: Update preview image
+
+on:
+  workflow_dispatch:
+    inputs:
+      page_url:
+        description: "Optional page URL override"
+        required: false
+        type: string
+
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-preview-image
+  cancel-in-progress: true
+
+jobs:
+  update-preview-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Cache Puppeteer Chrome
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-chrome-${{ runner.os }}-${{ hashFiles('package.json', 'package-lock.json') }}
+          restore-keys: |
+            puppeteer-chrome-${{ runner.os }}-
+
+      - name: Install screenshot dependency
+        run: npm install --no-save capture-website puppeteer
+
+      - name: Install Puppeteer Chrome
+        shell: bash
+        run: |
+          CHROME_PATH="$(npx puppeteer browsers install chrome | awk '/chrome@/ { print $2; exit }')"
+          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_PATH" >> "$GITHUB_ENV"
+          echo "Installed Chrome at: $CHROME_PATH"
+
+      - name: Resolve GitHub Pages URL
+        id: page
+        shell: bash
+        env:
+          INPUT_PAGE_URL: ${{ inputs.page_url }}
+        run: |
+          if [[ -n "$INPUT_PAGE_URL" ]]; then
+            PAGE_URL="$INPUT_PAGE_URL"
+          else
+            OWNER="${GITHUB_REPOSITORY_OWNER}"
+            REPO="${GITHUB_REPOSITORY#*/}"
+
+            if [[ "$REPO" == "${OWNER}.github.io" ]]; then
+              PAGE_URL="https://${OWNER}.github.io/"
+            else
+              PAGE_URL="https://${OWNER}.github.io/${REPO}/"
+            fi
+          fi
+
+          echo "PAGE_URL=$PAGE_URL" >> "$GITHUB_ENV"
+          echo "page_url=$PAGE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for page to become available
+        shell: bash
+        run: |
+          echo "Checking: $PAGE_URL"
+
+          for i in {1..30}; do
+            STATUS="$(curl -L -s -o /dev/null -w '%{http_code}' "$PAGE_URL" || true)"
+
+            if [[ "$STATUS" =~ ^2|3 ]]; then
+              echo "Page is available with HTTP $STATUS"
+              exit 0
+            fi
+
+            echo "Page not ready yet. HTTP $STATUS"
+            sleep 5
+          done
+
+          echo "Page did not become available: $PAGE_URL"
+          exit 1
+
+      - name: Capture preview image
+        env:
+          PAGE_URL: ${{ env.PAGE_URL }}
+          OUTPUT_PATH: .preview/preview.png
+          VIEWPORT_WIDTH: 1280
+          VIEWPORT_HEIGHT: 800
+          CAPTURE_DELAY_SECONDS: 3
+        run: node .github/scripts/capture-preview.mjs
+
+      - name: Publish preview image to preview-assets branch
+        shell: bash
+        run: |
+          cd .preview
+
+          git init
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git checkout -b preview-assets
+          git add preview.png
+          git commit -m "Update preview image"
+
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push --force origin preview-assets
