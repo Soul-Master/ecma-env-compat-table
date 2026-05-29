@@ -1,6 +1,7 @@
 import editions from '../data/edition-mapping.json' with { type: "json" };
 
 const BCD_URL = "https://unpkg.com/@mdn/browser-compat-data/data.json";
+const EDGE_CHROMIUM_VERSION = "79";
 
 const columns = [
     { id: "chrome", label: "Chrome", browserIds: ["chrome"] },
@@ -94,7 +95,7 @@ function aggregateCompatForColumn(compats, column) {
 
 function summarizeColumn(compat, column) {
     const parts = column.browserIds.map(browserId => {
-        const support = summarizeSupport(compat?.support?.[browserId]);
+        const support = summarizeSupport(compat?.support?.[browserId], browserId);
         return { browserId, ...support };
     });
 
@@ -162,10 +163,10 @@ function getByPath(root, path) {
     return path.split(".").reduce((node, key) => node?.[key], root);
 }
 
-function summarizeSupport(value) {
+function summarizeSupport(value, browserId) {
     if (!value) return { state: "unknown", text: "Unknown", notes: "", numericParts: [] };
 
-    const entries = Array.isArray(value) ? value : [value];
+    const entries = normalizeSupportEntries(value, browserId);
 
     const usable = entries
         .filter(entry => entry && entry.version_added && entry.version_added !== false)
@@ -199,6 +200,29 @@ function summarizeSupport(value) {
         notes,
         numericParts: parseVersion(text),
     };
+}
+
+function normalizeSupportEntries(value, browserId) {
+    const entries = Array.isArray(value) ? value : [value];
+    if (browserId !== "edge") return entries;
+
+    return entries.map(entry => {
+        if (!entry || entry.version_added === false) return entry;
+        if (entry.version_added === true) return entry;
+
+        const versionAdded = String(entry.version_added);
+        const versionRemoved = entry.version_removed ? String(entry.version_removed) : null;
+
+        if (versionRemoved && compareVersions(versionRemoved, EDGE_CHROMIUM_VERSION) <= 0) {
+            return { ...entry, version_added: false };
+        }
+
+        if (compareVersions(versionAdded, EDGE_CHROMIUM_VERSION) < 0) {
+            return { ...entry, version_added: EDGE_CHROMIUM_VERSION };
+        }
+
+        return entry;
+    });
 }
 
 function compareVersions(a, b) {
