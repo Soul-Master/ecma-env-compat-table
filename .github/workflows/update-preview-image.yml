@@ -8,9 +8,11 @@ on:
         required: false
         type: string
 
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows:
+      - "pages-build-deployment"
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -21,6 +23,11 @@ concurrency:
 
 jobs:
   update-preview-image:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      }}
     runs-on: ubuntu-latest
 
     steps:
@@ -41,6 +48,8 @@ jobs:
             puppeteer-chrome-${{ runner.os }}-
 
       - name: Install screenshot dependency
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
         run: npm install --no-save capture-website puppeteer
 
       - name: Install Puppeteer Chrome
@@ -72,7 +81,7 @@ jobs:
           echo "PAGE_URL=$PAGE_URL" >> "$GITHUB_ENV"
           echo "page_url=$PAGE_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for page to become available
+      - name: Wait for deployed page to become available
         shell: bash
         run: |
           echo "Checking: $PAGE_URL"
